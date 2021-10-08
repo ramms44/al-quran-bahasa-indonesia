@@ -1,13 +1,12 @@
 // ignore_for_file: file_names
 
-import 'dart:convert';
-
 import 'package:dropdown_formfield/dropdown_formfield.dart';
-import 'package:flutter/material.dart';
-import 'package:quran/src/components/colors.dart';
 import 'package:quran/src/customWidgets/loadingShimmer.dart';
 import 'package:quran/src/model/daftarSuratModel.dart';
+import 'package:quran/src/components/colors.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
+import 'dart:convert';
 
 class SearchSurahAyah extends StatefulWidget {
   const SearchSurahAyah({Key key}) : super(key: key);

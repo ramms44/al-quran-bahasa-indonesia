@@ -1621,7 +1621,7 @@ class _SurahAyatsState extends State<SurahAyats> {
             SliverList(
               delegate: SliverChildBuilderDelegate(
                   (context, index) => line(height, index, width),
-                  childCount: jumlahAyat),
+                  childCount: jumlahAyat - 1),
             ),
           ],
           //     ),

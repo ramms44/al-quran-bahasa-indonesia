@@ -86,23 +86,40 @@ class _NotesPageState extends State<NotesPage> {
           ),
         ),
       ),
-      body: ListView.builder(
-          padding: const EdgeInsets.all(15),
-          itemCount: mynotes.length,
-          itemBuilder: (BuildContext context, int index) {
-            return Card(
-              child: Container(
-                color: colors.light_brown,
-                height: 50,
-                child: Center(
-                  child: Text(
-                    '${mynotes[index]}',
-                    textAlign: TextAlign.center,
+      body: mynotes == null
+          ? Container(
+              padding: const EdgeInsets.all(15),
+              child: Card(
+                child: Container(
+                  color: colors.light_brown,
+                  height: 50,
+                  child: Center(
+                    child: Text(
+                      'Catatan anda masih kosong',
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
               ),
-            );
-          }),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(15),
+              itemCount: mynotes.length,
+              itemBuilder: (BuildContext context, int index) {
+                return Card(
+                  child: Container(
+                    color: colors.light_brown,
+                    height: 50,
+                    child: Center(
+                      child: Text(
+                        '${mynotes[index]}',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
       // floatingActionButton: FloatingActionButton(
       //   onPressed: () {
       //     // Add your onPressed code here!
