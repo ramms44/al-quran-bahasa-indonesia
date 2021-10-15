@@ -18,8 +18,8 @@ class _HelpPageState extends State<HelpPage> {
     double height = MediaQuery.of(context).size.height;
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: height * 0.15,
-        automaticallyImplyLeading: false,
+        // toolbarHeight: height * 0.15,
+        // automaticallyImplyLeading: false,
         // ignore: use_full_hex_values_for_flutter_colors
         backgroundColor: colors.default_green, // colors green default
         // Here we take the value from the MyHomePage object that was created by
@@ -31,20 +31,20 @@ class _HelpPageState extends State<HelpPage> {
             const Padding(
               padding: EdgeInsets.all(15.0),
               child: Text(
-                'HelpPage',
+                'Help',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 24,
+                  fontSize: 18,
                 ),
               ),
             ),
           ],
         ),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(45),
-          ),
-        ),
+        // shape: const RoundedRectangleBorder(
+        //   borderRadius: BorderRadius.vertical(
+        //     bottom: Radius.circular(45),
+        //   ),
+        // ),
       ),
       // ignore: avoid_unnecessary_containers
       body: Container(
@@ -57,21 +57,19 @@ class _HelpPageState extends State<HelpPage> {
                   MainAxisAlignment.center, //Center Column contents vertically,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  padding: EdgeInsets.all(10),
-                  child: Text('Bantuan', textAlign: TextAlign.left),
-                ),
-                Container(
-                  padding: EdgeInsets.all(10),
-                  child: Text('Bugs & reports', textAlign: TextAlign.left),
-                ),
-                Container(
-                  padding: EdgeInsets.all(10),
-                  child: Text('Playstore', textAlign: TextAlign.left),
-                ),
-                Container(
-                  padding: EdgeInsets.all(10),
-                  child: Text('admin@email.com', textAlign: TextAlign.left),
+                Card(
+                  color: colors.default_green,
+                  child: Container(
+                    padding: EdgeInsets.all(10),
+                    child: Text(
+                      'email : abuhashouse@gmail.com',
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                          fontStyle: FontStyle.italic,
+                          fontSize: 14,
+                          color: colors.white),
+                    ),
+                  ),
                 ),
               ],
             ),

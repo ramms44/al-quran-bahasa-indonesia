@@ -1380,7 +1380,10 @@ class _SearchSurahAyahState extends State<SearchSurahAyah> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Pencarian Surah & Ayah'),
+        title: Text(
+          'Pencarian Surah & Ayah',
+          style: TextStyle(fontSize: 18),
+        ),
       ),
       body: Container(
         child: SingleChildScrollView(

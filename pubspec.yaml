@@ -58,6 +58,7 @@ dependencies:
   convert: ^3.0.1
   substring_highlight: ^1.0.33
   cloud_firestore: ^2.5.3
+  scroll_to_index: ^2.1.0
 
 dev_dependencies:
   flutter_test:

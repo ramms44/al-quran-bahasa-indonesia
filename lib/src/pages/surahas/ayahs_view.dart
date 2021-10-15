@@ -1,7 +1,10 @@
+// ignore_for_file: avoid_unnecessary_containers
+
+import 'dart:async';
+
 import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:quran/src/animations/bottomAnimation.dart';
-import 'package:quran/src/components/audioTestPage.dart';
 import 'package:quran/src/components/colors.dart';
 import 'package:quran/src/components/notifiers/play_button_notifier.dart';
 import 'package:quran/src/components/notifiers/progress_notifier.dart';
@@ -11,15 +14,13 @@ import 'package:quran/src/customWidgets/loadingShimmer.dart';
 import 'package:quran/src/model/daftarSuratModel.dart';
 import 'package:quran/src/model/surahModel.dart';
 import 'package:quran/src/pages/search/searchPage.dart';
-import 'package:search_page/search_page.dart';
 import 'package:translator/translator.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/material.dart';
-import 'package:quran/src/pages/search/searchPage.dart';
-import 'package:zoom_widget/zoom_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:substring_highlight/substring_highlight.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
+import 'dart:math' as math;
 import 'dart:convert';
 
 // use GetIt or Provider rather than a global variable in a real project
@@ -38,6 +39,7 @@ class SurahAyats extends StatefulWidget {
   final List<dynamic> audioContent;
   final int indexAudio;
   final int jumlah_ayat;
+  final String bahasa;
   SurahAyats({
     this.ayatsList,
     this.surahName,
@@ -49,6 +51,7 @@ class SurahAyats extends StatefulWidget {
     this.audioContent,
     this.indexAudio,
     this.jumlah_ayat,
+    this.bahasa,
   });
 
   @override
@@ -57,17 +60,24 @@ class SurahAyats extends StatefulWidget {
 }
 
 class _SurahAyatsState extends State<SurahAyats> {
-  final isShuffleModeEnabledNotifier = ValueNotifier<bool>(false);
-  final currentSongTitleNotifier = ValueNotifier<String>('');
-  final playlistNotifier = ValueNotifier<List<String>>([]);
-  final repeatButtonNotifier = RepeatButtonNotifier();
-  final isFirstSongNotifier = ValueNotifier<bool>(true);
-  final playButtonNotifier = PlayButtonNotifier();
-  final isLastSongNotifier = ValueNotifier<bool>(true);
-  final progressNotifier = ProgressNotifier();
+  var audiocomplete;
+  int audioindex = 0;
+  final light = false; // this is the declaration
+  var titles = '';
+  Timer _timer;
+
   final translator = GoogleTranslator();
   final int ayatIndex;
   var data;
+
+  // ============scroll to index=========== //
+  static const maxCount = 100;
+  final random = math.Random();
+  final scrollDirection = Axis.vertical;
+
+  AutoScrollController controller;
+  List<List<int>> randomList;
+  // ====================================== //
 
   int first = 0;
   int lengthData;
@@ -1116,6 +1126,8 @@ class _SurahAyatsState extends State<SurahAyats> {
   List<String> mySaveNotes = [];
   var mynotes_form;
   List<String> mynotes = [];
+  String bahasa;
+  var englishTranslateText = [];
 
   @override
   void initState() {
@@ -1126,7 +1138,45 @@ class _SurahAyatsState extends State<SurahAyats> {
     getTafsir(ayatIndex);
     print('ayatIndex : ${ayatIndex}');
     getPrefsTafsir();
+    getBahasa(bahasa);
+    getSurahEn(ayatIndex);
     getNotes();
+
+    controller = AutoScrollController(
+        viewportBoundaryGetter: () =>
+            Rect.fromLTRB(0, 0, 0, MediaQuery.of(context).padding.bottom),
+        axis: scrollDirection);
+    print('index audio ============ ${widget.indexAudio}');
+  }
+
+  Future<dynamic> getSurahEn(val) async {
+    String url = "https://api.alquran.cloud/v1/surah/$val/en.asad";
+    final response = await http.get(Uri.parse(url));
+    var data;
+    if (response.statusCode == 200) {
+      data = json.decode(response.body);
+      // print(
+      //     'response en asad ============== : ${data['data']['ayahs'][0]['text']}');
+      setState(() {
+        englishTranslateText = data['data']['ayahs'];
+      });
+      print(
+          'englishTranslateText ============== : ${englishTranslateText[0]['text']}');
+      // code...
+    } else {
+      print("Failed to load");
+      throw Exception("Failed  to Load Post");
+    }
+  }
+
+  Future<String> getBahasa(value) async {
+    final prefs = await SharedPreferences.getInstance();
+    value = prefs.getString("bahasa") ?? "null";
+    print('bahasa yang dipilih : $value');
+    setState(() {
+      bahasa = value;
+    });
+    return value;
   }
 
   getPrefsTafsir() async {
@@ -1141,24 +1191,33 @@ class _SurahAyatsState extends State<SurahAyats> {
 
   addNotes(List<String> mySaveNotes) async {
     var notes;
+    List<String> noteList;
+    //  noteList = [mynotes, mySaveNotes];
     SharedPreferences prefs = await SharedPreferences.getInstance();
     notes = prefs.setStringList('notes', mynotes + mySaveNotes);
     // setState(() {
     //   mynotes = mySaveNotes;
     // });
     print('mynotes save notes : $mynotes');
-    Future.value(42)
-        .timeout(const Duration(seconds: 3))
-        .then((value) => getNotes());
+    // Future.value(42)
+    //     .timeout(const Duration(seconds: 3))
+    //     .then((value) => getNotes());
   }
 
   getNotes() async {
     var notes;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     notes = prefs.getStringList('notes');
-    setState(() {
-      mynotes = notes;
-    });
+    // setState(() {
+    //   mynotes = notes;
+    // });
+    notes == null
+        ? setState(() {
+            mynotes = ['catatan surah : ayah'];
+          })
+        : setState(() {
+            mynotes = notes;
+          });
     print('mynotes getnotes : $mynotes');
   }
   // Future<String> getJson() {
@@ -1193,24 +1252,61 @@ class _SurahAyatsState extends State<SurahAyats> {
           ? (widget.jumlah_ayat)
           : (widget.ayatsList.length + 1);
     });
-    print('jumlahAyat =================== : $jumlahAyat');
 
-    _audioPlayer = AudioPlayer();
-    setInitialPlaylist(jumlahAyat);
-    _listenForChangesInPlayerState();
-    _listenForChangesInPlayerPosition();
-    _listenForChangesInBufferedPosition();
-    _listenForChangesInTotalDuration();
-    _listenForChangesInSequenceState();
-    // SharedPreferences prefs = await SharedPreferences.getInstance();
-    // dataFirstNumber = prefs.getInt('indexAyatPertama');
-    // print('index pertama ============= : $dataFirstNumber');
+    // _audioPlayer = AudioPlayer();
+    // setInitialPlaylist(jumlahAyat);
+    _pageManager = PageManager(
+      params: 'testing params',
+      prefix: 'https://cdn.islamic.network/quran/audio/128/ar.alafasy',
+      panjang_ayat: jumlahAyat,
+      ayatIndex: ayatIndex,
+      indexAudio: widget.indexAudio,
+    );
   }
+
+  int counter = -1;
+  Future _scrollToIndex() async {
+    setState(() {
+      counter++;
+      if (counter >= maxCount) counter = 0;
+    });
+
+    await controller.scrollToIndex(counter,
+        preferPosition: AutoScrollPosition.begin);
+    controller.highlight(counter);
+  }
+
+  Widget _wrapScrollTag({int index, Widget child}) => AutoScrollTag(
+        key: ValueKey(index),
+        controller: controller,
+        index: index,
+        child: child,
+        highlightColor: Colors.black.withOpacity(0.1),
+      );
 
   @override
   void dispose() {
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  Widget reciter(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              currentAudio(context),
+              // playlist(context),
+              // AddRemoveSongButtons(),
+              AudioProgressBar(),
+              AudioControlButtons(),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   var dataTafsir;
@@ -1221,7 +1317,7 @@ class _SurahAyatsState extends State<SurahAyats> {
     if (response.statusCode == 200) {
       setState(() {
         dataTafsir = json.decode(response.body);
-        lengthData = response.body.length;
+        // lengthData = response.body.length;
       });
 
       // print('data tafsir ayat pertama : ${dataTafsir['tafsir'][0]['tafsir']}');
@@ -1245,139 +1341,71 @@ class _SurahAyatsState extends State<SurahAyats> {
 
     _playlist = ConcatenatingAudioSource(children: [
       for (var i = widget.indexAudio; i <= lengthAyah; i++)
-        AudioSource.uri(Uri.parse('$prefix/$i.mp3'), tag: 'Qari $i'),
+        AudioSource.uri(Uri.parse('$prefix/$i.mp3'), tag: '$i'),
     ]);
-    await _audioPlayer.setAudioSource(_playlist);
-  }
-
-  void _listenForChangesInPlayerState() {
-    _audioPlayer.playerStateStream.listen((playerState) {
-      final isPlaying = playerState.playing;
-      final processingState = playerState.processingState;
-      if (processingState == ProcessingState.loading ||
-          processingState == ProcessingState.buffering) {
-        playButtonNotifier.value = ButtonState.loading;
-      } else if (!isPlaying) {
-        playButtonNotifier.value = ButtonState.paused;
-      } else if (processingState != ProcessingState.completed) {
-        playButtonNotifier.value = ButtonState.playing;
-      } else {
-        _audioPlayer.seek(Duration.zero);
-        _audioPlayer.pause();
-      }
-    });
-  }
-
-  void _listenForChangesInPlayerPosition() {
-    _audioPlayer.positionStream.listen((position) {
-      final oldState = progressNotifier.value;
-      progressNotifier.value = ProgressBarState(
-        current: position,
-        buffered: oldState.buffered,
-        total: oldState.total,
-      );
-    });
-  }
-
-  void _listenForChangesInBufferedPosition() {
-    _audioPlayer.bufferedPositionStream.listen((bufferedPosition) {
-      final oldState = progressNotifier.value;
-      progressNotifier.value = ProgressBarState(
-        current: oldState.current,
-        buffered: bufferedPosition,
-        total: oldState.total,
-      );
-    });
-  }
-
-  void _listenForChangesInTotalDuration() {
-    _audioPlayer.durationStream.listen((totalDuration) {
-      final oldState = progressNotifier.value;
-      progressNotifier.value = ProgressBarState(
-        current: oldState.current,
-        buffered: oldState.buffered,
-        total: totalDuration ?? Duration.zero,
-      );
-    });
-  }
-
-  void _listenForChangesInSequenceState() {
-    _audioPlayer.sequenceStateStream.listen((sequenceState) {
-      if (sequenceState == null) return;
-
-      // update current song title
-      final currentItem = sequenceState.currentSource;
-      final title = currentItem?.tag as String;
-      currentSongTitleNotifier.value = title ?? '';
-
-      // update playlist
-      final playlist = sequenceState.effectiveSequence;
-      final titles = playlist.map((item) => item.tag as String).toList();
-      playlistNotifier.value = titles;
-
-      // update shuffle mode
-      isShuffleModeEnabledNotifier.value = sequenceState.shuffleModeEnabled;
-
-      // update previous and next buttons
-      if (playlist.isEmpty || currentItem == null) {
-        isFirstSongNotifier.value = true;
-        isLastSongNotifier.value = true;
-      } else {
-        isFirstSongNotifier.value = playlist.first == currentItem;
-        isLastSongNotifier.value = playlist.last == currentItem;
-      }
-    });
+    await _audioPlayer
+        .setAudioSource(_playlist)
+        .then((value) => {print('value _playlist =========== " : $value')});
   }
 
   void play() async {
-    _audioPlayer.play();
-    setNumberAyatPertama(widget.ayatsList.length == null
-        ? widget.jumlah_ayat
-        : widget.ayatsList.length + 1);
+    // setState(() {
+    //   isReciter == !isReciter
+    // });
+    // _audioPlayer.play();
+    // setNumberAyatPertama(widget.ayatsList.length == null
+    //     ? widget.jumlah_ayat
+    //     : widget.ayatsList.length + 1);
+
+    // _audioPlayer.playerStateStream.listen((state) {
+    //   print('state ============= : $state');
+    // });
   }
 
   void pause() {
-    _audioPlayer.pause();
+    // _audioPlayer.pause();
   }
 
-  void seek(Duration position) {
-    _audioPlayer.seek(position);
-  }
-
-  // void dispose() {
-  //   _audioPlayer.dispose();
+  // void seek(Duration position) {
+  //   _audioPlayer.seek(position);
   // }
 
-  void onRepeatButtonPressed() {
-    repeatButtonNotifier.nextState();
-    switch (repeatButtonNotifier.value) {
-      case RepeatState.off:
-        _audioPlayer.setLoopMode(LoopMode.off);
-        break;
-      case RepeatState.repeatSong:
-        _audioPlayer.setLoopMode(LoopMode.one);
-        break;
-      case RepeatState.repeatPlaylist:
-        _audioPlayer.setLoopMode(LoopMode.all);
-    }
+  // void onPreviousSongButtonPressed() {
+  //   _audioPlayer.seekToPrevious();
+  // }
+
+  // void onNextSongButtonPressed() {
+  //   _audioPlayer.seekToNext();
+  // }
+
+  // void onShuffleButtonPressed() async {
+  //   final enable = !_audioPlayer.shuffleModeEnabled;
+  //   if (enable) {
+  //     await _audioPlayer.shuffle();
+  //   }
+  //   await _audioPlayer.setShuffleModeEnabled(enable);
+  // }
+
+  // List<String> terjemahan = [];
+  // List<String> data_terjemah = [];
+  var datas;
+  var terjemahan = [];
+  void translateBahasa() async {
+    final translator = GoogleTranslator();
+    // Using the Future API
+    // for (var i = 0; i < jumlahAyat - 1; i++) {
+    //   // datas[i] = [data['ayat'][i]['idn']];
+    //   // terjemahan = data['ayat'][i]['idn'];
+    //   // Passing the translation to a variable
+    //   datas = (await translator.translate("${data['ayat'][i]['idn']}",
+    //       from: 'id', to: 'id'));
+
+    //   terjemahan.add(datas.toString());
+    //   setState(() {});
+    // }
   }
 
-  void onPreviousSongButtonPressed() {
-    _audioPlayer.seekToPrevious();
-  }
-
-  void onNextSongButtonPressed() {
-    _audioPlayer.seekToNext();
-  }
-
-  void onShuffleButtonPressed() async {
-    final enable = !_audioPlayer.shuffleModeEnabled;
-    if (enable) {
-      await _audioPlayer.shuffle();
-    }
-    await _audioPlayer.setShuffleModeEnabled(enable);
-  }
-
+  // var terjemahan;
   Future<AyatList> getAyat(int index) async {
     String url = "https://equran.id/api/surat/$index";
     final response = await http.get(Uri.parse(url));
@@ -1386,8 +1414,10 @@ class _SurahAyatsState extends State<SurahAyats> {
       setState(() {
         data = json.decode(response.body);
         lengthData = response.body.length;
+        // terjemahan =
       });
-
+      translateBahasa();
+      print('jumlahAyat =================== : ${jumlahAyat - 1}');
       print('ayat : ${data['ayat'][0]['ar']}');
       return AyatList.fromJson(json.decode(response.body));
     } else {
@@ -1437,20 +1467,170 @@ class _SurahAyatsState extends State<SurahAyats> {
             Navigator.of(context).pop(),
           },
         ),
-        toolbarHeight: height * 0.15,
+        // toolbarHeight: height * 0.3,
         automaticallyImplyLeading: false,
         // ignore: use_full_hex_values_for_flutter_colors
         backgroundColor: colors.default_green, // colors green default
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
-        title: Text(
-          widget.surahEnglishName,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-          ),
+        title: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // currentAudio(context),
+                Text(
+                  widget.surahEnglishName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
+                ),
+                prefTafsir == true
+                    ? Container()
+                    : Container(
+                        child: Row(
+                          children: [
+                            Container(
+                              // ignore: prefer_const_constructors
+                              child: IconButton(
+                                icon: const Icon(Icons.book_outlined),
+                                tooltip: 'tafsir',
+                                onPressed: () {
+                                  setState(() {
+                                    isTafsir = !isTafsir;
+                                  });
+                                },
+                              ),
+                            ),
+                            Container(
+                              // ignore: prefer_const_constructors
+                              child: IconButton(
+                                icon: Icon(isReciter == true
+                                    ? Icons.pause_circle_filled
+                                    : Icons.play_circle_fill),
+                                tooltip: 'reciter',
+                                onPressed: () {
+                                  setState(() {
+                                    isReciter = !isReciter;
+                                  });
+                                  // if (isReciter == true) {
+                                  //   play();
+                                  // } else {
+                                  //   pause();
+                                  // }
+                                },
+                              ),
+                            ),
+                            Container(
+                              // ignore: prefer_const_constructors
+                              child: IconButton(
+                                icon: const Icon(Icons.book),
+                                tooltip: 'catatan',
+                                onPressed: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext context) {
+                                      return AlertDialog(
+                                        content: Stack(
+                                          overflow: Overflow.visible,
+                                          children: <Widget>[
+                                            Positioned(
+                                              right: -40.0,
+                                              top: -40.0,
+                                              child: InkResponse(
+                                                onTap: () {
+                                                  Navigator.of(context).pop();
+                                                },
+                                                child: CircleAvatar(
+                                                  child: Icon(Icons.close),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              ),
+                                            ),
+                                            Form(
+                                              key: _formKey_notes,
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: <Widget>[
+                                                  Padding(
+                                                    padding:
+                                                        EdgeInsets.all(8.0),
+                                                    child: TextFormField(
+                                                      decoration:
+                                                          InputDecoration(
+                                                        icon: Icon(Icons
+                                                            .notes_rounded),
+                                                        hintText:
+                                                            'Buat catatan disini',
+                                                        labelText: 'Catatan',
+                                                      ),
+                                                      onSaved: (String notes) {
+                                                        // This optional block of code can be used to run
+                                                        // code when the user saves the form.
+                                                        setState(() {
+                                                          mynotes_form = notes;
+                                                        });
+                                                        print(
+                                                            'string notes : $mynotes_form');
+                                                      },
+                                                      validator:
+                                                          (String value) {
+                                                        return (value == null)
+                                                            ? 'Text tidak boleh kosong'
+                                                            : null;
+                                                      },
+                                                    ),
+                                                  ),
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            8.0),
+                                                    child: RaisedButton(
+                                                      child: Text("Simpan"),
+                                                      onPressed: () {
+                                                        if (_formKey_notes
+                                                            .currentState
+                                                            .validate()) {
+                                                          _formKey_notes
+                                                              .currentState
+                                                              .save();
+                                                          Navigator.of(context)
+                                                              .pop();
+                                                          mySaveNotes
+                                                              .add('Catatan');
+                                                          addNotes(mySaveNotes);
+                                                        }
+                                                      },
+                                                      color:
+                                                          colors.default_green,
+                                                      textColor: colors.white,
+                                                      shape:
+                                                          RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            new BorderRadius
+                                                                .circular(18.0),
+                                                      ),
+                                                    ),
+                                                  )
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ],
+            ),
+          ],
         ),
-
         centerTitle: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
@@ -1458,19 +1638,6 @@ class _SurahAyatsState extends State<SurahAyats> {
           ),
         ),
       ),
-      // appBar: AppBar(
-      //   leading: IconButton(
-      //     icon: const Icon(Icons.arrow_back, color: Colors.white),
-      //     onPressed: () => Navigator.of(context).pop(),
-      //   ),
-      //   backgroundColor: colors.default_green,
-      //   title: Text(widget.surahEnglishName,
-      //       style: const TextStyle(
-      //         color: Colors.white,
-      //       )),
-      //   centerTitle: true,
-      // ),
-      // backgroundColor: Colors.white,
       body: Container(
         padding: const EdgeInsets.only(bottom: 20),
         color: colors.white,
@@ -1478,33 +1645,25 @@ class _SurahAyatsState extends State<SurahAyats> {
           // scrollDirection: Axis.vertical,
           // shrinkWrap: true,
           slivers: <Widget>[
-            // Visibility(
-            //   visible: isVisible,
-            // SliverAppBar(
-            //   backgroundColor:
-            //       // themeChange.darkTheme ? Colors.grey[850] :
-            //       colors.light_brown,
-            //   pinned: true,
-            //   expandedHeight: height * 0.1,
-            //   flexibleSpace: flexibleAppBar(context, height, width),
-            //   automaticallyImplyLeading: false,
-            // ),
-            // ),
-            // Center(
-            //   child: (widget.ayatIndex != 1 && widget.ayatIndex != 9)
-            //       ? Container(
-            //           padding: const EdgeInsets.only(top: 7, bottom: 7),
-            //           width: double.infinity,
-            //           child: Text(
-            //               data == null
-            //                   ? ''
-            //                   : 'بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ',
-            //               textAlign: TextAlign.center,
-            //               style: TextStyle(
-            //                   fontSize: height * 0.03, color: Colors.black)),
-            //         )
-            //       : Container(),
-            // ),
+            isReciter == true
+                ? SliverToBoxAdapter(
+                    child: WidgetAnimator(
+                      Container(
+                        color: colors.light_brown,
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          children: [
+                            currentAudio(context),
+                            // playlist(context),
+                            // AddRemoveSongButtons(),
+                            AudioProgressBar(),
+                            AudioControlButtons(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : SliverToBoxAdapter(),
             SliverToBoxAdapter(
               child: (widget.ayatIndex != 1 && widget.ayatIndex != 9)
                   ? Container(
@@ -1528,411 +1687,322 @@ class _SurahAyatsState extends State<SurahAyats> {
                     )
                   : Container(),
             ),
-
-            SliverToBoxAdapter(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Container(
-                    // color: colors.default_brown,
-                    child: Center(
-                      child: prefTafsir == true
-                          ? Container()
-                          : Column(
-                              children: [
-                                SizedBox(
-                                  height: 50,
-                                  width: 100,
-                                  child: SwitchListTile(
-                                    title: const Text('Tafsir'),
-                                    value: isTafsir,
-                                    onChanged: (bool value) {
-                                      setState(() {
-                                        isTafsir = value;
-                                      });
-                                      print('isSwitched : $isTafsir');
-                                    },
-                                  ),
-                                ),
-                                Text(
-                                  isTafsir == false
-                                      ? 'Tafsir Off'
-                                      : 'Tafsir On',
-                                  style: const TextStyle(
-                                    color: colors.default_grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
+            // SliverToBoxAdapter(
+            //   child: reciter(context),
+            // ),
+            data == null
+                ? SliverToBoxAdapter(
+                    child: LoadingShimmer(
+                      text: "Ayat",
+                    ),
+                  )
+                : SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => line(height, index, width),
+                      childCount: jumlahAyat - 1,
                     ),
                   ),
-                  prefTafsir == true
-                      ? Container()
-                      : Container(
-                          // color: colors.default_brown,
-                          child: Center(
-                            child: Column(
-                              children: [
-                                SizedBox(
-                                  height: 50,
-                                  width: 100,
-                                  child: SwitchListTile(
-                                    title: const Text('Qari'),
-                                    value: isReciter,
-                                    onChanged: (bool value) {
-                                      setState(() {
-                                        isReciter = value;
-                                      });
-                                      if (isReciter == true) {
-                                        play();
-                                      } else {
-                                        pause();
-                                      }
-                                      print('isSwitched : $isReciter');
-                                    },
-                                  ),
-                                ),
-                                Text(
-                                  isReciter == false ? 'Qari off' : 'Qari on',
-                                  style: const TextStyle(
-                                    color: colors.default_grey,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                ],
-              ),
-            ),
-            // SliverToBoxAdapter(
-            //   child: Container(
-            //     color: colors.light_brown_3,
-            //     child: Column(
-            //       children: [
-            //         // isReciter == true ? audioProgress : SizedBox(),
-            //         // isReciter == true ? audioControlButtons : SizedBox(),
-            //       ],
-            //     ),
-            //   ),
-            // ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                  (context, index) => line(height, index, width),
-                  childCount: jumlahAyat - 1),
-            ),
           ],
-          //     ),
-          //   ],
-          // ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Search text',
-        onPressed: () => showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              content: Stack(
-                overflow: Overflow.visible,
-                children: <Widget>[
-                  Positioned(
-                    right: -40.0,
-                    top: -40.0,
-                    child: InkResponse(
-                      onTap: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: CircleAvatar(
-                        child: Icon(Icons.close),
-                        backgroundColor: Colors.red,
-                      ),
-                    ),
-                  ),
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: TextFormField(
-                            decoration: const InputDecoration(
-                              icon: Icon(Icons.person),
-                              hintText: 'Kata apa yang ingin kamu cari?',
-                              labelText: 'Pencarian *',
-                            ),
-                            onSaved: (String search) {
-                              // This optional block of code can be used to run
-                              // code when the user saves the form.
-                              setState(() {
-                                searchString = search;
-                              });
-                              print('string search : $search');
-                            },
-                            validator: (String value) {
-                              return (value == null)
-                                  ? 'Text tidak boleh kosong'
-                                  : null;
-                            },
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: RaisedButton(
-                            child: Text("Cari"),
-                            onPressed: () {
-                              if (_formKey.currentState.validate()) {
-                                _formKey.currentState.save();
-                                Navigator.of(context).pop();
-                                setState(() {
-                                  searchString = searchString;
-                                });
-                                // addNotes();
-                                // save to firestore
-                              }
-                            },
-                            color: colors.default_green,
-                            textColor: colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: new BorderRadius.circular(18.0),
-                            ),
-                          ),
-                        )
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+        onPressed: _scrollToIndex,
+        tooltip: 'Increment',
+        child: Text(counter.toString()),
+      ),
+    );
+  }
+
+  Widget currentAudio(BuildContext context) {
+    return ValueListenableBuilder<String>(
+      valueListenable: _pageManager.currentAudioTitleNotifier,
+      builder: (_, title, __) {
+        _timer = new Timer(const Duration(milliseconds: 100), () {
+          setState(() {
+            titles = title;
+          });
+          print('titles : $titles');
+        });
+        return Container(
+            // padding: const EdgeInsets.only(top: 8.0),
+            // child: Text(
+            //   title,
+            //   style: TextStyle(fontSize: 40),
+            // ),
             );
-          },
-        ),
-        child: Icon(Icons.search),
-        backgroundColor: colors.default_green,
+      },
+    );
+  }
+
+  Widget playlist(BuildContext context) {
+    return Expanded(
+      child: ValueListenableBuilder<List<String>>(
+        valueListenable: _pageManager.playlistNotifier,
+        builder: (context, title, _) {
+          return ListView.builder(
+            itemCount: title.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: index == int.parse(titles) - 1
+                    ? Text('${title[index]}',
+                        style: TextStyle(color: Colors.black))
+                    : Text(
+                        '${title[index]}',
+                        style: TextStyle(color: Colors.blue),
+                      ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 
   Widget line(double height, int index, double width) {
     //
-    //
-    return Container(
-      margin: const EdgeInsets.only(top: 10),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(width * 0.015, 0, 0, 0),
-        child: WidgetAnimator(
-          ListTile(
-            trailing: CircleAvatar(
-              radius: height * 0.013,
-              backgroundColor: Color(0xff04364f),
-              child: CircleAvatar(
-                radius: height * 0.012,
-                backgroundColor: colors.light_brown,
-                child: SubstringHighlight(
-                  terms: [searchString],
-                  text: data == null
-                      ? ''
-                      : data['ayat'][index]['nomor'].toString(),
-                  textStyle: TextStyle(fontSize: height * 0.015),
-                ),
-              ),
-            ),
-            title: GestureDetector(
-              onTap: () {
-                // ignore: avoid_print
-                print("click surat ke : ${widget.ayatIndex}");
-                print("click ayat ke : ${data['ayat'][index]['nomor']}");
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      content: Stack(
-                        overflow: Overflow.visible,
-                        children: <Widget>[
-                          Positioned(
-                            right: -40.0,
-                            top: -40.0,
-                            child: InkResponse(
-                              onTap: () {
-                                Navigator.of(context).pop();
-                              },
-                              child: CircleAvatar(
-                                child: Icon(Icons.close),
-                                backgroundColor: Colors.red,
-                              ),
-                            ),
-                          ),
-                          Form(
-                            key: _formKey_notes,
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
+    return _wrapScrollTag(
+      index: index,
+      child: Container(
+        margin: const EdgeInsets.only(top: 10),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(width * 0.015, 0, 0, 0),
+          child: WidgetAnimator(
+            ListView(
+              shrinkWrap: true,
+              scrollDirection: scrollDirection,
+              controller: controller,
+              children: <Widget>[
+                ListTile(
+                  trailing: CircleAvatar(
+                    radius: height * 0.013,
+                    backgroundColor: Color(0xff04364f),
+                    child: CircleAvatar(
+                      radius: height * 0.012,
+                      backgroundColor: colors.default_grey,
+                      child: SubstringHighlight(
+                        terms: [searchString],
+                        text: data == null
+                            ? ''
+                            : data['ayat'][index]['nomor'].toString(),
+                        textStyle: TextStyle(
+                            fontSize: height * 0.015,
+                            color: Colors.yellowAccent),
+                      ),
+                    ),
+                  ),
+                  title: GestureDetector(
+                    onTap: () {
+                      // ignore: avoid_print
+                      print("click surat ke : ${widget.ayatIndex}");
+                      print("click ayat ke : ${data['ayat'][index]['nomor']}");
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            content: Stack(
+                              overflow: Overflow.visible,
                               children: <Widget>[
-                                Padding(
-                                  padding: EdgeInsets.all(8.0),
-                                  child: TextFormField(
-                                    decoration: InputDecoration(
-                                      icon: Icon(Icons.notes_rounded),
-                                      hintText: 'Buat catatan disini',
-                                      labelText:
-                                          'Catatan ${widget.ayatIndex} : ${data['ayat'][index]['nomor']}',
+                                Positioned(
+                                  right: -40.0,
+                                  top: -40.0,
+                                  child: InkResponse(
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                    child: CircleAvatar(
+                                      child: Icon(Icons.close),
+                                      backgroundColor: Colors.red,
                                     ),
-                                    onSaved: (String notes) {
-                                      // This optional block of code can be used to run
-                                      // code when the user saves the form.
-                                      setState(() {
-                                        mynotes_form = notes;
-                                      });
-                                      print('string notes : $mynotes_form');
-                                    },
-                                    validator: (String value) {
-                                      return (value == null)
-                                          ? 'Text tidak boleh kosong'
-                                          : null;
-                                    },
                                   ),
                                 ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: RaisedButton(
-                                    child: Text("Simpan"),
-                                    onPressed: () {
-                                      if (_formKey_notes.currentState
-                                          .validate()) {
-                                        _formKey_notes.currentState.save();
-                                        Navigator.of(context).pop();
-                                        mySaveNotes.add(
-                                            'Catatan ${widget.ayatIndex} : ${data['ayat'][index]['nomor']} : ${mynotes_form}');
-                                        // setState(() {
-                                        //   mySaveNotes =
-                                        //       'Catatan ${widget.ayatIndex} : ${data['ayat'][index]['nomor']} : ${mynotes_form}';
-                                        // });
-                                        addNotes(mySaveNotes);
-                                        // save to firestore
-                                      }
-                                    },
-                                    color: colors.default_green,
-                                    textColor: colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          new BorderRadius.circular(18.0),
-                                    ),
+                                Form(
+                                  key: _formKey_notes,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: <Widget>[
+                                      Padding(
+                                        padding: EdgeInsets.all(8.0),
+                                        child: TextFormField(
+                                          decoration: InputDecoration(
+                                            icon: Icon(Icons.notes_rounded),
+                                            hintText: 'Buat catatan disini',
+                                            labelText:
+                                                'Catatan ${widget.ayatIndex} : ${data['ayat'][index]['nomor']}',
+                                          ),
+                                          onSaved: (String notes) {
+                                            // This optional block of code can be used to run
+                                            // code when the user saves the form.
+                                            setState(() {
+                                              mynotes_form = notes;
+                                            });
+                                            print(
+                                                'string notes : $mynotes_form');
+                                          },
+                                          validator: (String value) {
+                                            return (value == null)
+                                                ? 'Text tidak boleh kosong'
+                                                : null;
+                                          },
+                                        ),
+                                      ),
+                                      Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: RaisedButton(
+                                          child: Text("Simpan"),
+                                          onPressed: () {
+                                            if (_formKey_notes.currentState
+                                                .validate()) {
+                                              _formKey_notes.currentState
+                                                  .save();
+                                              Navigator.of(context).pop();
+                                              mySaveNotes.add(
+                                                  'Catatan ${widget.ayatIndex} : ${data['ayat'][index]['nomor']} : ${mynotes_form}');
+                                              // setState(() {
+                                              //   mySaveNotes =
+                                              //       'Catatan ${widget.ayatIndex} : ${data['ayat'][index]['nomor']} : ${mynotes_form}';
+                                              // });
+                                              addNotes(mySaveNotes);
+                                              // save to firestore
+                                            }
+                                          },
+                                          color: colors.default_green,
+                                          textColor: colors.white,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                new BorderRadius.circular(18.0),
+                                          ),
+                                        ),
+                                      )
+                                    ],
                                   ),
-                                )
+                                ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-              child: Container(
-                margin: const EdgeInsets.all(7),
-                child: Column(
-                  children: data == null
-                      ? [
-                          LoadingShimmer(
-                            text: "Ayat",
-                          )
-                        ]
-                      // بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ
-                      : [
-                          GestureDetector(
-                            onTap: () {
-                              // ignore: avoid_print
-                              setState(() {
-                                isZoom = !isZoom;
-                              });
-                            },
-                            child: prefTafsir == true
-                                ? Container()
-                                : Container(
-                                    width: double.infinity,
-                                    child: SubstringHighlight(
-                                      terms: [searchString],
-                                      text: data == null
-                                          ? ''
-                                          : data['ayat'][index]['ar'],
-                                      textAlign: TextAlign.right,
-                                      textStyle: TextStyle(
-                                        fontFamily: 'Scheherazade',
-                                        fontSize: isZoom == true
-                                            ? height * 0.06
-                                            : height * 0.03,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                  ),
-                          ),
-                          prefTafsir == true
-                              ? Container()
-                              : Container(
-                                  width: double.infinity,
-                                  child: SubstringHighlight(
-                                    terms: [searchString],
-                                    text: data == null
-                                        ? ''
-                                        : data['ayat'][index]['idn'],
-                                    textAlign: TextAlign.left,
-                                    textStyle: TextStyle(
-                                      fontSize: height * 0.02,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
+                          );
+                        },
+                      );
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.all(7),
+                      child: Column(
+                        children: (data == null && terjemahan == null)
+                            ? [
+                                LoadingShimmer(
+                                  text: "Ayat",
+                                )
+                              ]
+                            // بِسْمِ اللّٰهِ الرَّحْمٰنِ الرَّحِيْمِ
+                            : [
+                                GestureDetector(
+                                  onTap: () {
+                                    // ignore: avoid_print
+                                    setState(() {
+                                      isZoom = !isZoom;
+                                    });
+                                  },
+                                  child: prefTafsir == true
+                                      ? Container()
+                                      : Container(
+                                          width: double.infinity,
+                                          child: SubstringHighlight(
+                                            terms: [searchString],
+                                            text: data == null
+                                                ? ''
+                                                : data['ayat'][index]['ar'],
+                                            textAlign: TextAlign.right,
+                                            textStyle: data['ayat'][index]
+                                                            ['nomor']
+                                                        .toString() ==
+                                                    titles
+                                                ? TextStyle(
+                                                    fontFamily: 'Scheherazade',
+                                                    fontSize: isZoom == true
+                                                        ? height * 0.06
+                                                        : height * 0.03,
+                                                    color: Colors.blue,
+                                                  )
+                                                : TextStyle(
+                                                    fontFamily: 'Scheherazade',
+                                                    fontSize: isZoom == true
+                                                        ? height * 0.06
+                                                        : height * 0.03,
+                                                    color: Colors.black,
+                                                  ),
+                                          ),
+                                        ),
                                 ),
-                          // dataTafsir['tafsir'][0]['tafsir']
-
-                          (isTafsir == false)
-                              ? prefTafsir == true
-                                  ? Container(
-                                      margin: const EdgeInsets.only(
-                                          top: 4, bottom: 4),
-                                      width: double.infinity,
-                                      child: dataTafsir == null
-                                          ? LoadingShimmer(
-                                              text: "Ayat",
-                                            )
-                                          : SubstringHighlight(
-                                              terms: [searchString],
-                                              text: dataTafsir == null
-                                                  ? ''
-                                                  : dataTafsir['tafsir'][index]
-                                                      ['tafsir'],
-                                              textAlign: TextAlign.left,
-                                              textStyle: TextStyle(
-                                                fontSize: height * 0.02,
-                                                color: Colors.grey[600],
-                                              ),
-                                            ),
-                                    )
-                                  : Container()
-                              : Container(
-                                  margin:
-                                      const EdgeInsets.only(top: 4, bottom: 4),
-                                  width: double.infinity,
-                                  child: dataTafsir == null
-                                      ? LoadingShimmer(
-                                          text: "Ayat",
-                                        )
-                                      : SubstringHighlight(
+                                prefTafsir == true
+                                    ? Container()
+                                    : Container(
+                                        width: double.infinity,
+                                        child: SubstringHighlight(
                                           terms: [searchString],
-                                          text: dataTafsir == null
+                                          text: (data == null)
                                               ? ''
-                                              : dataTafsir['tafsir'][index]
-                                                  ['tafsir'],
+                                              : bahasa == 'id'
+                                                  ? data['ayat'][index]['idn']
+                                                  : englishTranslateText[index]
+                                                      ['text'],
                                           textAlign: TextAlign.left,
                                           textStyle: TextStyle(
                                             fontSize: height * 0.02,
                                             color: Colors.grey[600],
                                           ),
                                         ),
-                                ),
-                        ],
+                                      ),
+                                // dataTafsir['tafsir'][0]['tafsir']
+
+                                (isTafsir == false)
+                                    ? prefTafsir == true
+                                        ? Container(
+                                            margin: const EdgeInsets.only(
+                                                top: 4, bottom: 4),
+                                            width: double.infinity,
+                                            child: dataTafsir == null
+                                                ? LoadingShimmer(
+                                                    text: "Ayat",
+                                                  )
+                                                : SubstringHighlight(
+                                                    terms: [searchString],
+                                                    text: dataTafsir == null
+                                                        ? ''
+                                                        : dataTafsir['tafsir']
+                                                            [index]['tafsir'],
+                                                    textAlign: TextAlign.left,
+                                                    textStyle: TextStyle(
+                                                      fontSize: height * 0.02,
+                                                      color: Colors.grey[600],
+                                                    ),
+                                                  ),
+                                          )
+                                        : Container()
+                                    : Container(
+                                        margin: const EdgeInsets.only(
+                                            top: 4, bottom: 4),
+                                        width: double.infinity,
+                                        child: dataTafsir == null
+                                            ? LoadingShimmer(
+                                                text: "Ayat",
+                                              )
+                                            : SubstringHighlight(
+                                                terms: [searchString],
+                                                text: dataTafsir == null
+                                                    ? ''
+                                                    : dataTafsir['tafsir']
+                                                        [index]['tafsir'],
+                                                textAlign: TextAlign.left,
+                                                textStyle: TextStyle(
+                                                  fontSize: height * 0.02,
+                                                  color: Colors.grey[600],
+                                                ),
+                                              ),
+                                      ),
+                              ],
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -1993,47 +2063,52 @@ class _SurahAyatsState extends State<SurahAyats> {
         // ),
         );
   }
+}
 
-  Widget audioProgress(BuildContext context) {
+class AudioProgressBar extends StatelessWidget {
+  const AudioProgressBar({Key key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
     return ValueListenableBuilder<ProgressBarState>(
-      valueListenable: progressNotifier,
+      valueListenable: _pageManager.progressNotifier,
       builder: (_, value, __) {
         return ProgressBar(
           progress: value.current,
-          thumbColor: colors.default_brown,
-          progressBarColor: colors.light_brown_2,
-          bufferedBarColor: colors.light_brown,
           buffered: value.buffered,
           total: value.total,
-          onSeek: seek,
+          onSeek: _pageManager.seek,
         );
       },
     );
   }
+}
 
-  Widget audioControlButtons(BuildContext context) {
+class AudioControlButtons extends StatelessWidget {
+  const AudioControlButtons({Key key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
     return Container(
       height: 60,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          repeatButton(context),
-          previousSongButton(context),
-          playButton(context),
-          nextSongButton(context),
-          // RepeatButton(),
-          // PreviousSongButton(),
-          // PlayButton(),
-          // NextSongButton(),
-          // ShuffleButton(),
+          RepeatButton(),
+          PreviousSongButton(),
+          PlayButton(),
+          NextSongButton(),
+          ShuffleButton(),
         ],
       ),
     );
   }
+}
 
-  Widget repeatButton(BuildContext context) {
+class RepeatButton extends StatelessWidget {
+  const RepeatButton({Key key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
     return ValueListenableBuilder<RepeatState>(
-      valueListenable: repeatButtonNotifier,
+      valueListenable: _pageManager.repeatButtonNotifier,
       builder: (context, value, child) {
         Icon icon;
         switch (value) {
@@ -2049,29 +2124,42 @@ class _SurahAyatsState extends State<SurahAyats> {
         }
         return IconButton(
           icon: icon,
-          onPressed: onRepeatButtonPressed,
+          onPressed: _pageManager.onRepeatButtonPressed,
         );
       },
     );
   }
+}
 
-  Widget previousSongButton(BuildContext context) {
+class PreviousSongButton extends StatelessWidget {
+  const PreviousSongButton({Key key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: isFirstSongNotifier,
+      valueListenable: _pageManager.isFirstSongNotifier,
       builder: (_, isFirst, __) {
         return IconButton(
           icon: Icon(Icons.skip_previous),
-          onPressed: (isFirst) ? null : onPreviousSongButtonPressed,
+          onPressed:
+              (isFirst) ? null : _pageManager.onPreviousSongButtonPressed,
         );
       },
     );
   }
+}
 
-  Widget playButton(BuildContext context) {
+var isplay = '';
+
+class PlayButton extends StatelessWidget {
+  const PlayButton({Key key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
     return ValueListenableBuilder<ButtonState>(
-      valueListenable: playButtonNotifier,
+      valueListenable: _pageManager.playButtonNotifier,
       // ignore: missing_return
       builder: (_, value, __) {
+        isplay = value.toString();
+        // print('value : $isplay');
         switch (value) {
           case ButtonState.loading:
             return Container(
@@ -2084,40 +2172,48 @@ class _SurahAyatsState extends State<SurahAyats> {
             return IconButton(
               icon: Icon(Icons.play_arrow),
               iconSize: 32.0,
-              onPressed: play,
+              onPressed: _pageManager.play,
             );
           case ButtonState.playing:
             return IconButton(
               icon: Icon(Icons.pause),
               iconSize: 32.0,
-              onPressed: pause,
+              onPressed: _pageManager.pause,
             );
         }
       },
     );
   }
+}
 
-  Widget buNextSongButtonild(BuildContext context) {
+class NextSongButton extends StatelessWidget {
+  const NextSongButton({Key key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: isLastSongNotifier,
+      valueListenable: _pageManager.isLastSongNotifier,
       builder: (_, isLast, __) {
         return IconButton(
           icon: Icon(Icons.skip_next),
-          onPressed: (isLast) ? null : onNextSongButtonPressed,
+          onPressed: (isLast) ? null : _pageManager.onNextSongButtonPressed,
         );
       },
     );
   }
+}
 
-  Widget shuffleButton(BuildContext context) {
+class ShuffleButton extends StatelessWidget {
+  const ShuffleButton({Key key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
     return ValueListenableBuilder<bool>(
-      valueListenable: isShuffleModeEnabledNotifier,
+      valueListenable: _pageManager.isShuffleModeEnabledNotifier,
       builder: (context, isEnabled, child) {
         return IconButton(
           icon: (isEnabled)
-              ? const Icon(Icons.shuffle)
-              : const Icon(Icons.shuffle, color: Colors.grey),
-          onPressed: onShuffleButtonPressed,
+              ? Icon(Icons.shuffle)
+              : Icon(Icons.shuffle, color: Colors.grey),
+          onPressed: _pageManager.onShuffleButtonPressed,
         );
       },
     );

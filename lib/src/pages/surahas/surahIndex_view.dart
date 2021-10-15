@@ -4,33 +4,45 @@ import 'package:quran/src/animations/bottomAnimation.dart';
 import 'package:quran/src/components/colors.dart';
 import 'package:quran/src/controller/quranAPI.dart';
 import 'package:quran/src/customWidgets/loadingShimmer.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:quran/src/model/surahModel.dart';
 import 'package:quran/src/pages/search/searchPage.dart';
-import 'package:search_page/search_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:search_page/search_page.dart';
+import 'package:http/http.dart' as http;
 import 'ayahs_view.dart';
 import 'dart:convert';
 
 class SurahIndex extends StatefulWidget {
   final bool isTafsir;
+  final String bahasa;
 
-  const SurahIndex({Key key, this.isTafsir}) : super(key: key);
+  SurahIndex({Key key, this.isTafsir, this.bahasa}) : super(key: key);
   @override
   State<SurahIndex> createState() => _SurahIndexState();
 }
 
 class _SurahIndexState extends State<SurahIndex> {
   bool prefTafsir;
+  String bahasa;
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     getAyat();
+    getBahasa(bahasa);
     getJsonQuran();
     setIstafsir(widget.isTafsir);
-    // print('isTafsir : $isTafsir');
+    print('code bahasa ============ : ${widget.bahasa}');
+  }
+
+  Future<String> getBahasa(value) async {
+    final prefs = await SharedPreferences.getInstance();
+    value = prefs.getString("bahasa") ?? "null";
+    setState(() {
+      bahasa = value;
+    });
+    print('bahasa yang dipilih : $bahasa');
+    return value;
   }
 
   getPrefsTafsir() async {
@@ -62,22 +74,6 @@ class _SurahIndexState extends State<SurahIndex> {
   var suratList;
   var audioContent;
   var indexAudio;
-  // Future<SurahsListEnAsad> getTranslateList() async {
-  //   String url = "http://api.alquran.cloud/v1/quran/en.asad";
-  //   final response = await http.get(Uri.parse(url));
-  //   if (response.statusCode == 200) {
-  //     // List<dynamic> list = json.decode(response.body);
-  //     setState(() {
-  //       data = json.decode(response.body);
-  //     });
-  //     // print(
-  //     //     'surah list en asad : ${data['data']['surahs'][0]['ayahs'][0]['text']}');
-  //     return SurahsListEnAsad.fromJSON(json.decode(response.body));
-  //   } else {
-  //     print("Failed to load");
-  //     throw Exception("Failed  to Load Post");
-  //   }
-  // }
 
   Future<dynamic> getAyat() async {
     // data['data']['surahs'][index]['ayahs']
@@ -125,12 +121,12 @@ class _SurahIndexState extends State<SurahIndex> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        toolbarHeight: height * 0.15,
-        automaticallyImplyLeading: false,
+        // leading: IconButton(
+        //   icon: const Icon(Icons.arrow_back, color: Colors.white),
+        //   onPressed: () => Navigator.of(context).pop(),
+        // ),
+        // toolbarHeight: height * 0.15,
+        // automaticallyImplyLeading: false,
         // ignore: use_full_hex_values_for_flutter_colors
         backgroundColor: colors.default_green, // colors green default
         // Here we take the value from the MyHomePage object that was created by
@@ -141,17 +137,17 @@ class _SurahIndexState extends State<SurahIndex> {
             prefTafsir == true ? 'Tafsir Surat Qur`an' : 'Surat Qur`an',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: 18,
             ),
           ),
         ),
 
         centerTitle: false,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(45),
-          ),
-        ),
+        // shape: const RoundedRectangleBorder(
+        //   borderRadius: BorderRadius.vertical(
+        //     bottom: Radius.circular(45),
+        //   ),
+        // ),
       ),
       body: Container(
         color: colors.light_brown,
@@ -223,8 +219,11 @@ class _SurahIndexState extends State<SurahIndex> {
                                     : "${data[index]['nama_latin']}",
                                 style: Theme.of(context).textTheme.bodyText1,
                               ),
-                              subtitle: Text(
-                                  data == null ? '' : "${data[index]['arti']}"),
+                              subtitle: Text(data == null
+                                  ? ''
+                                  : bahasa == 'id'
+                                      ? "${data[index]['arti']}"
+                                      : '${snapshot.data.surahs[index].englishNameTranslation}'),
                               trailing: Text(
                                 data == null
                                     ? 'loading...'
@@ -236,26 +235,25 @@ class _SurahIndexState extends State<SurahIndex> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => SurahAyats(
-                                      ayatsList:
-                                          snapshot.data.surahs[index].ayahs,
-                                      surahName:
-                                          snapshot.data.surahs[index].name,
-                                      surahEnglishName: alafasiData['surahs']
-                                          [index]['englishName'],
-                                      englishMeaning: snapshot.data
-                                          .surahs[index].englishNameTranslation,
-                                      suratList: snapshot.data.surahs[index],
-                                      audioContent: (index - 1 == -1)
-                                          ? snapshot.data.surahs[0].ayahs
-                                          : snapshot
-                                              .data.surahs[index - 1].ayahs,
-                                      // translate: data['data']['surahs'][index]
-                                      //     ['ayahs'],
-                                      indexAudio: alafasiData['surahs'][index]
-                                          ['ayahs'][0]['number'],
-                                      ayatIndex: index + 1,
-                                      // isTafsir: isTafsir,
-                                    ),
+                                        ayatsList:
+                                            snapshot.data.surahs[index].ayahs,
+                                        surahName:
+                                            snapshot.data.surahs[index].name,
+                                        surahEnglishName: alafasiData['surahs']
+                                            [index]['englishName'],
+                                        englishMeaning: snapshot
+                                            .data
+                                            .surahs[index]
+                                            .englishNameTranslation,
+                                        suratList: snapshot.data.surahs[index],
+                                        audioContent: (index - 1 == -1)
+                                            ? snapshot.data.surahs[0].ayahs
+                                            : snapshot
+                                                .data.surahs[index - 1].ayahs,
+                                        indexAudio: alafasiData['surahs'][index]
+                                            ['ayahs'][0]['number'],
+                                        ayatIndex: index + 1,
+                                        bahasa: widget.bahasa),
                                   ),
                                 );
                                 // index == 0 ? setNumberAyatPertama(1) : null;
@@ -286,10 +284,10 @@ class _SurahIndexState extends State<SurahIndex> {
             onQueryUpdate: (s) => print(s),
             items: people,
             searchLabel: 'Search text',
-            suggestion: Center(
+            suggestion: const Center(
               child: Text('Filter text by ayat / juz'),
             ),
-            failure: Center(
+            failure: const Center(
               child: Text('No text found :('),
             ),
             filter: (person) => [
@@ -303,17 +301,18 @@ class _SurahIndexState extends State<SurahIndex> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => SurahAyats(
-                            ayatIndex: person.nomor,
-                            jumlah_ayat: person.jumlah_ayat,
-                            // surahName: surahName,
-                            surahEnglishName: alafasiData['surahs']
-                                [person.nomor - 1]['englishName'],
-                            // englishMeaning: englishMeaning,
-                            // suratList: suratList,
-                            indexAudio: alafasiData['surahs'][person.nomor - 1]
-                                ['ayahs'][0]['number'],
-                          )),
+                    builder: (context) => SurahAyats(
+                      ayatIndex: person.nomor,
+                      jumlah_ayat: person.jumlah_ayat,
+                      // surahName: surahName,
+                      surahEnglishName: alafasiData['surahs'][person.nomor - 1]
+                          ['englishName'],
+                      // englishMeaning: englishMeaning,
+                      // suratList: suratList,
+                      indexAudio: alafasiData['surahs'][person.nomor - 1]
+                          ['ayahs'][0]['number'],
+                    ),
+                  ),
                 );
               },
               title: Text(person.nama_latin),

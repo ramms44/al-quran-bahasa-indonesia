@@ -1,78 +1,139 @@
 // ignore_for_file: file_names
-import 'package:flutter/material.dart';
-import 'package:quran/src/components/colors.dart';
 
-class Pengaturan extends StatefulWidget {
-  const Pengaturan({Key key}) : super(key: key);
+import 'package:dropdown_formfield/dropdown_formfield.dart';
+import 'package:quran/src/homeScreen_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quran/src/components/colors.dart';
+import 'package:flutter/material.dart';
+
+class PengaturanBahasa extends StatefulWidget {
+  const PengaturanBahasa({Key key}) : super(key: key);
 
   @override
-  _PengaturanState createState() => _PengaturanState();
+  _PengaturanBahasaState createState() => _PengaturanBahasaState();
 }
 
-class _PengaturanState extends State<Pengaturan> {
+class _PengaturanBahasaState extends State<PengaturanBahasa> {
+  // ignore: prefer_typing_uninitialized_variables
+  String bahasa;
+  // ignore: non_constant_identifier_names
+  String simpan_bahasa;
+  final formKey = GlobalKey<FormState>();
+
+  int jumlah_ayat = 0;
+
+  var dataSourceBahasa = [
+    // {
+    //   "code_bahasa": "jw",
+    //   "bahasa": "Bahasa Jawa",
+    // },
+    // {
+    //   "code_bahasa": "su",
+    //   "bahasa": "Bahawa Sunda",
+    // },
+    {
+      "code_bahasa": "id",
+      "bahasa": "Bahasa Indonesia",
+    },
+    {
+      "code_bahasa": "en",
+      "bahasa": "Bahasa Inggris",
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    bahasa = '';
+  }
+
+  Future<void> setBahasa(value) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('bahasa', value);
+    print('bahasa code : $value');
+  }
+
+  _saveForm() async {
+    var form = formKey.currentState;
+    if (form.validate()) {
+      form.save();
+      setBahasa(bahasa);
+      setState(() {
+        simpan_bahasa = bahasa;
+      });
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => HomeScreen(bahasa: simpan_bahasa)),
+      );
+    }
+    print('bahasa : $simpan_bahasa');
+  }
+
+  String bahasaValidator(var bahasa) {
+    bahasa = bahasa;
+    if (bahasa == '') {
+      return 'bahasa kosong';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ignore: unused_local_variable
-    double width = MediaQuery.of(context).size.width;
-    // ignore: unused_local_variable
     double height = MediaQuery.of(context).size.height;
+    double width = MediaQuery.of(context).size.width;
+
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: height * 0.15,
-        automaticallyImplyLeading: false,
-        // ignore: use_full_hex_values_for_flutter_colors
-        backgroundColor: colors.default_green, // colors green default
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          // ignore: prefer_const_literals_to_create_immutables
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(15.0),
-              child: Text(
-                'Pengaturan',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                ),
-              ),
-            ),
-          ],
-        ),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            bottom: Radius.circular(45),
-          ),
+        title: Text(
+          bahasa == 'id' ? 'Pengaturan Bahasa' : 'Languages Setting',
+          style: TextStyle(fontSize: 18),
         ),
       ),
       body: Container(
-        child: Center(
-          child: Container(
-            width: double.infinity,
+        child: SingleChildScrollView(
+          child: Form(
+            key: formKey,
             child: Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center, //Center Column contents vertically,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: <Widget>[
                 Container(
-                  padding: EdgeInsets.all(10),
-                  child: Text(
-                    'Jenis Penulisan Arabic',
-                    textAlign: TextAlign.left,
+                  padding: EdgeInsets.all(16),
+                  child: DropDownFormField(
+                    titleText: 'Bahasa',
+                    hintText: 'Pilih bahasa',
+                    value: bahasa,
+                    onSaved: (value) {
+                      setState(() {
+                        bahasa = value.toString();
+                      });
+                      print('bahasa : $value');
+                    },
+                    onChanged: (value) {
+                      setState(() {
+                        bahasa = value.toString();
+                      });
+                      print('bahasa : $value');
+                    },
+                    validator: bahasaValidator,
+                    dataSource: dataSourceBahasa,
+                    textField: 'bahasa',
+                    valueField: 'code_bahasa',
                   ),
                 ),
                 Container(
-                  padding: EdgeInsets.all(10),
-                  child: Text('Ukuran Font Arabic', textAlign: TextAlign.left),
-                ),
-                Container(
-                  padding: EdgeInsets.all(10),
-                  child: Text('Jenis Font Latin', textAlign: TextAlign.left),
-                ),
-                Container(
-                  padding: EdgeInsets.all(10),
-                  child: Text('Ukuran Font Latin', textAlign: TextAlign.left),
+                  padding: const EdgeInsets.all(8),
+                  // ignore: deprecated_member_use
+                  child: RaisedButton(
+                    child: const Text(
+                      'Simpan',
+                      style: TextStyle(color: colors.white),
+                    ),
+                    onPressed: () {
+                      _saveForm();
+                    },
+                    color: colors.default_green,
+                  ),
                 ),
               ],
             ),

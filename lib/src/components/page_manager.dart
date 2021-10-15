@@ -5,7 +5,7 @@ import 'notifiers/progress_notifier.dart';
 import 'notifiers/repeat_button_notifier.dart';
 
 class PageManager {
-  final currentSongTitleNotifier = ValueNotifier<String>('');
+  final currentAudioTitleNotifier = ValueNotifier<String>('');
   final playlistNotifier = ValueNotifier<List<String>>([]);
   final progressNotifier = ProgressNotifier();
   final repeatButtonNotifier = RepeatButtonNotifier();
@@ -14,16 +14,25 @@ class PageManager {
   final isLastSongNotifier = ValueNotifier<bool>(true);
   final isShuffleModeEnabledNotifier = ValueNotifier<bool>(false);
 
+  // code...
+  var completePlay;
+
   AudioPlayer _audioPlayer;
   ConcatenatingAudioSource _playlist;
 
-  PageManager() {
-    _init();
+  PageManager({
+    String params,
+    String prefix,
+    int panjang_ayat,
+    int ayatIndex,
+    int indexAudio,
+  }) {
+    _init(prefix, panjang_ayat, ayatIndex, indexAudio);
   }
 
-  void _init() async {
+  void _init(prefix, panjang_ayat, int ayatIndex, int indexAudio) async {
     _audioPlayer = AudioPlayer();
-    setInitialPlaylist();
+    _setInitialPlaylist(prefix, panjang_ayat, ayatIndex, indexAudio);
     _listenForChangesInPlayerState();
     _listenForChangesInPlayerPosition();
     _listenForChangesInBufferedPosition();
@@ -31,22 +40,32 @@ class PageManager {
     _listenForChangesInSequenceState();
   }
 
-  void setInitialPlaylist() async {
-    // print('length playlist : =========== $length');
-    int lengthAyah = 7;
+  void _setInitialPlaylist(url, panjang_ayat, ayatIndex, int indexAudio) async {
+    int lengthAyah = panjang_ayat;
+    if (ayatIndex > 2) {
+      // setState(() {
+      lengthAyah = lengthAyah + indexAudio;
+      // });
+    } else {
+      // code...
+    }
     const prefix = 'https://cdn.islamic.network/quran/audio/128/ar.alafasy';
-    // final reciter1 = Uri.parse('$prefix/1.mp3');
+
     _playlist = ConcatenatingAudioSource(children: [
-      for (var i = 1; i <= lengthAyah; i++)
-        AudioSource.uri(Uri.parse('$prefix/$i.mp3'), tag: 'Qari $i'),
+      for (var i = indexAudio; i <= lengthAyah; i++)
+        AudioSource.uri(Uri.parse('$prefix/$i.mp3'),
+            tag: '${i - indexAudio + 1}'),
     ]);
-    await _audioPlayer.setAudioSource(_playlist);
+    await _audioPlayer
+        .setAudioSource(_playlist)
+        .then((value) => {print('value _playlist =========== " : $value')});
   }
 
   void _listenForChangesInPlayerState() {
     _audioPlayer.playerStateStream.listen((playerState) {
       final isPlaying = playerState.playing;
       final processingState = playerState.processingState;
+
       if (processingState == ProcessingState.loading ||
           processingState == ProcessingState.buffering) {
         playButtonNotifier.value = ButtonState.loading;
@@ -101,7 +120,9 @@ class PageManager {
       // update current song title
       final currentItem = sequenceState.currentSource;
       final title = currentItem?.tag as String;
-      currentSongTitleNotifier.value = title ?? '';
+      currentAudioTitleNotifier.value = title ?? '';
+
+      // methods
 
       // update playlist
       final playlist = sequenceState.effectiveSequence;
@@ -168,15 +189,14 @@ class PageManager {
     await _audioPlayer.setShuffleModeEnabled(enable);
   }
 
-  void addReciter() {
-    final reciterNumber = _playlist.length + 1;
-    const prefix = 'https://cdn.islamic.network/quran/audio/128';
-    final reciter = Uri.parse('$prefix/ar.alafasy/$reciterNumber.mp3');
-    _playlist.add(AudioSource.uri(reciter, tag: 'Qari $reciterNumber'));
-    print('reciter add url : ');
+  void addSong() {
+    final songNumber = _playlist.length + 1;
+    const prefix = 'https://www.soundhelix.com/examples/mp3';
+    final song = Uri.parse('$prefix/SoundHelix-Song-$songNumber.mp3');
+    _playlist.add(AudioSource.uri(song, tag: '$songNumber'));
   }
 
-  void removeReciter() {
+  void removeSong() {
     final index = _playlist.length - 1;
     if (index < 0) return;
     _playlist.removeAt(index);

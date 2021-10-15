@@ -6,7 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:quran/src/components/colors.dart';
 import 'package:quran/src/pages/help/help.dart';
 import 'package:quran/src/pages/notes/notes.dart';
-import 'package:quran/src/pages/search/searchPage.dart';
+import 'package:quran/src/pages/pengaturan/pengaturan.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:quran/src/pages/surahas/surahIndex_view.dart';
 import 'animations/bottomAnimation.dart';
 import 'components/home_button.dart';
@@ -22,7 +23,8 @@ const kUrl2 = 'https://cdn.islamic.network/quran/audio/128/ar.alafasy/2.mp3';
 
 class HomeScreen extends StatefulWidget {
   final double maxSlide;
-  HomeScreen({@required this.maxSlide});
+  final bahasa;
+  HomeScreen({@required this.maxSlide, this.bahasa});
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -31,13 +33,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   AnimationController animationController;
   String localFilePath;
   AudioPlayer audioPlayer = AudioPlayer();
+  String bahasa;
 
   @override
   void initState() {
     super.initState();
-    animationController =
-        AnimationController(vsync: this, duration: Duration(milliseconds: 250));
+    getBahasa(bahasa);
+    animationController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 250));
     // play();
+  }
+
+  Future<String> getBahasa(value) async {
+    final prefs = await SharedPreferences.getInstance();
+    value = prefs.getString("bahasa") ?? "null";
+    print('bahasa yang dipilih : $value');
+    setState(() {
+      bahasa = value;
+    });
+    return value;
   }
 
   void toggle() => animationController.isDismissed
@@ -213,7 +227,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             children: [
               // children home button widgets component
               HomeButton(
-                buttonName: 'BACA QUR`AN',
+                buttonName:
+                    widget.bahasa == 'id' ? 'BACA QUR`AN' : 'READ QUR`AN',
                 onPress: () {
                   // Navigator.push(context, AnimatedRoutes(widget: SurahIndex()));
 
@@ -221,24 +236,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const SurahIndex(isTafsir: false),
+                      builder: (context) => SurahIndex(
+                        isTafsir: false,
+                        bahasa: bahasa,
+                      ),
                     ),
                   );
                   print('baca quran');
                 },
               ),
-              HomeButton(
-                buttonName: 'TAFSIR',
-                onPress: () {
-                  print('tafsir');
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SurahIndex(isTafsir: true),
-                    ),
-                  );
-                },
-              ),
+              // HomeButton(
+              //   buttonName: 'TAFSIR',
+              //   onPress: () {
+              //     print('tafsir');
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(
+              //         builder: (context) => const SurahIndex(isTafsir: true),
+              //       ),
+              //     );
+              //   },
+              // ),
               // HomeButton(
               //   buttonName: 'TERAKHIR BACA',
               //   onPress: () {
@@ -246,18 +264,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               //     play();
               //   },
               // ),
+              // HomeButton(
+              //   buttonName: 'PENCARIAN',
+              //   onPress: () {
+              //     print('pencarian');
+              //     Navigator.push(
+              //       context,
+              //       MaterialPageRoute(builder: (context) => SearchPages()),
+              //     );
+              //   },
+              // ),
               HomeButton(
-                buttonName: 'PENCARIAN',
-                onPress: () {
-                  print('pencarian');
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => SearchPages()),
-                  );
-                },
-              ),
-              HomeButton(
-                buttonName: 'PENCARIAN SURAT & AYAT',
+                buttonName: widget.bahasa == 'id'
+                    ? 'PENCARIAN SURAT & AYAT'
+                    : 'SEARCH VERSE & SURAH',
                 onPress: () {
                   print('pencarian');
                   Navigator.push(
@@ -267,25 +287,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 },
               ),
               HomeButton(
-                buttonName: 'CATATAN',
+                buttonName: widget.bahasa == 'id' ? 'LIHAT CATATAN' : 'NOTES',
                 onPress: () {
                   print('CATATAN');
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => NotesPage()),
+                    MaterialPageRoute(
+                        builder: (context) => NotesPage(bahasa: bahasa)),
                   );
                 },
               ),
-              // HomeButton(
-              //   buttonName: 'PENGATURAN',
-              //   onPress: () {
-              //     print('pengaturan');
-              //     Navigator.push(
-              //       context,
-              //       MaterialPageRoute(builder: (context) => Pengaturan()),
-              //     );
-              //   },
-              // ),
+              HomeButton(
+                buttonName:
+                    widget.bahasa == 'id' ? 'BAHASA' : 'LANGUAGES SETTING',
+                onPress: () {
+                  print('BAHASA');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => PengaturanBahasa()),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -307,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 }
 
-// 
+//
 class MainScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -334,7 +356,7 @@ class MainScreen extends StatelessWidget {
   }
 }
 
-// 
+//
 class SurahBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
