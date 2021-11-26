@@ -55,7 +55,7 @@ class _AudioTestPageState extends State<AudioTestPage> {
 @override
 Widget currentSongTitle(BuildContext context) {
   return ValueListenableBuilder<String>(
-    valueListenable: _pageManager.currentSongTitleNotifier,
+    // valueListenable: _pageManager.currentSongTitleNotifier,
     builder: (_, title, __) {
       return Padding(
         padding: const EdgeInsets.only(top: 8.0),
